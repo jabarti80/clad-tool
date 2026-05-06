@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLAD Surveillance Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f7fb;
+      margin: 0;
+      padding: 0;
+      color: #1f2937;
+    }
+
+    header {
+      background: #0f172a;
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    header p {
+      margin-top: 8px;
+      font-size: 15px;
+      color: #cbd5e1;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #0f172a;
+      font-size: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background: #f1f5f9;
+    }
+
+    input {
+      width: 95%;
+      padding: 7px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin: 8px 6px 0 0;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    button.secondary {
+      background: #475569;
+    }
+
+    button.danger {
+      background: #dc2626;
+    }
+
+    button.success {
+      background: #10b981;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .metric {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .metric .label {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .metric .value {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 4px;
+      color: #0f172a;
+    }
+
+    .classification {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #eff6ff;
+      border-left: 5px solid #2563eb;
+      font-size: 16px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    canvas {
+      width: 100%;
+      max-height: 420px;
+      margin-top: 12px;
+      background: white;
+      border-radius: 8px;
+    }
+
+    .note {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .warning {
+      background: #fff7ed;
+      border-left: 5px solid #f97316;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .upload-status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CLAD Surveillance Tool</h1>
+    <p>Post‑lung transplant spirometry trend analysis with PDF upload</p>
+  </header>
+
+  <main>
+    <!-- Card: Manual Entry -->
+    <section class="card">
+      <h2>1. Enter Serial PFT Values</h2>
+      <p class="note">Enter post-transplant spirometry values. Baseline FEV1 = mean of the two highest FEV1 values.</p>
+
+      <table id="pftTable">
+        <thead>
+          <tr><th>Date</th><th>FEV1 (L)</th><th>FVC (L)</th><th>Action</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <button onclick="addRow()">Add Row</button>
+      <button onclick="loadExample()" class="secondary">Load Example</button>
+      <button onclick="calculateCLAD()">Calculate CLAD</button>
+      <button onclick="clearTable()" class="danger">Clear</button>
+    </section>
+
+    <!-- Card: PDF Upload & Extraction -->
+    <section class="card">
+      <h2>Upload PFT Report (PDF)</h2>
+      <p class="note">Upload a pulmonary function test PDF. The backend will extract FEV1 and FVC and add them as a new row.</p>
+      <input type="file" id="pdfUpload" accept="application/pdf">
+      <button onclick="uploadPDF()" class="success">Upload & Extract</button>
+      <div id="uploadStatus" class="upload-status"></div>
+    </section>
+
+    <!-- Card: CLAD Summary -->
+    <section class="card">
+      <h2>2. CLAD Calculation Summary</h2>
+      <div class="metrics">
+        <div class="metric"><div class="label">Baseline FEV1</div><div class="value" id="baselineFev1">--</div></div>
+        <div class="metric"><div class="label">Latest FEV1</div><div class="value" id="latestFev1">--</div></div>
+        <div class="metric"><div class="label">Latest FVC</div><div class="value" id="latestFvc">--</div></div>
+        <div class="metric"><div class="label">FEV1 Decline</div><div class="value" id="declinePercent">--</div></div>
+      </div>
+      <div class="classification" id="classificationBox">Classification will appear here after calculation.</div>
+      <div class="warning">CLAD should only be confirmed after excluding reversible causes: infection, rejection, airway complications, pleural disease, fluid overload, or poor-quality spirometry.</div>
+    </section>
+
+    <!-- Card: Trend Chart -->
+    <section class="card">
+      <h2>3. Spirometry Trend</h2>
+      <canvas id="pftChart" width="1000" height="420"></canvas>
+    </section>
+
+    <!-- Card: Epic Note -->
+    <section class="card">
+      <h2>4. Epic‑ready Note</h2>
+      <textarea id="epicNote" readonly>CLAD surveillance note will appear here after calculation.</textarea>
+      <button onclick="copyNote()">Copy Note</button>
+    </section>
+  </main>
+
+  <script>
+    // ------------------------------
+    // Table / data management
+    // ------------------------------
+    function addRow(date = "", fev1 = "", fvc = "") {
+      const tbody = document.querySelector("#pftTable tbody");
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><input type="date" value="${date}"></td>
+        <td><input type="number" step="0.01" min="0" value="${fev1}"></td>
+        <td><input type="number" step="0.01" min="0" value="${fvc}"></td>
+        <td><button class="danger" onclick="this.closest('tr').remove()">Remove</button></td>
+      `;
+      tbody.appendChild(row);
+    }
+
+    function clearTable() {
+      document.querySelector("#pftTable tbody").innerHTML = "";
+      resetResults();
+    }
+
+    function resetResults() {
+      document.getElementById("baselineFev1").textContent = "--";
+      document.getElementById("latestFev1").textContent = "--";
+      document.getElementById("latestFvc").textContent = "--";
+      document.getElementById("declinePercent").textContent = "--";
+      document.getElementById("classificationBox").innerHTML = "Classification will appear here after calculation.";
+      document.getElementById("epicNote").value = "CLAD surveillance note will appear here after calculation.";
+      clearCanvas();
+    }
+
+    function loadExample() {
+      clearTable();
+      addRow("2025-05-05", "1.83", "2.14");
+      addRow("2025-06-04", "1.90", "2.01");
+      addRow("2025-10-08", "2.12", "2.18");
+      addRow("2026-01-20", "1.78", "1.95");
+      addRow("2026-03-27", "1.69", "1.82");
+      addRow("2026-04-15", "1.66", "1.79");
+    }
+
+    function getPFTData() {
+      const rows = document.querySelectorAll("#pftTable tbody tr");
+      const data = [];
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll("input");
+        const date = inputs[0].value;
+        const fev1 = parseFloat(inputs[1].value);
+        const fvc = parseFloat(inputs[2].value);
+        if (date && !isNaN(fev1) && !isNaN(fvc)) {
+          data.push({ date, fev1, fvc });
+        }
+      });
+      data.sort((a, b) => new Date(a.date) - new Date(b.date));
+      return data;
+    }
+
+    // ------------------------------
+    // CLAD calculation & UI update
+    // ------------------------------
+    function calculateCLAD() {
+      const data = getPFTData();
+      if (data.length < 2) {
+        alert("Please enter at least two valid PFT records.");
+        return;
+      }
+
+      const sortedByFEV1 = [...data].sort((a, b) => b.fev1 - a.fev1);
+      const baselineFev1 = (sortedByFEV1[0].fev1 + sortedByFEV1[1].fev1) / 2;
+      const latest = data[data.length - 1];
+      const latestPercentBaseline = (latest.fev1 / baselineFev1) * 100;
+      const percentDecline = 100 - latestPercentBaseline;
+      const threshold80 = baselineFev1 * 0.80;
+
+      let classification = "";
+      if (percentDecline < 10) classification = "No CLAD";
+      else if (percentDecline < 20) classification = "CLAD 0‑p / possible early allograft dysfunction";
+      else classification = "Possible established CLAD if persistent and unexplained";
+
+      let stage = "";
+      if (latestPercentBaseline > 80) stage = "No CLAD stage";
+      else if (latestPercentBaseline > 65) stage = "CLAD stage 1 if confirmed";
+      else if (latestPercentBaseline > 50) stage = "CLAD stage 2 if confirmed";
+      else if (latestPercentBaseline > 35) stage = "CLAD stage 3 if confirmed";
+      else stage = "CLAD stage 4 if confirmed";
+
+      document.getElementById("baselineFev1").textContent = baselineFev1.toFixed(2) + " L";
+      document.getElementById("latestFev1").textContent = latest.fev1.toFixed(2) + " L";
+      document.getElementById("latestFvc").textContent = latest.fvc.toFixed(2) + " L";
+      document.getElementById("declinePercent").textContent = percentDecline.toFixed(1) + "%";
+
+      document.getElementById("classificationBox").innerHTML = `
+        <strong>Classification:</strong> ${classification}<br>
+        <strong>Stage:</strong> ${stage}<br>
+        <strong>80% threshold:</strong> ${threshold80.toFixed(2)} L
+      `;
+
+      const note = `CLAD Surveillance Summary:\n\nBaseline FEV1 is ${baselineFev1.toFixed(2)} L (mean of two highest post-transplant values). Most recent FEV1 is ${latest.fev1.toFixed(2)} L, most recent FVC is ${latest.fvc.toFixed(2)} L. This represents a ${percentDecline.toFixed(1)}% decline from baseline.\n\nCurrent interpretation: ${classification}. Stage: ${stage}.\n\nReversible causes of allograft dysfunction must be excluded before confirming CLAD (infection, rejection, airway complications, pleural disease, fluid overload, test quality). Phenotype assignment (BOS / RAS) requires additional clinical correlation, full PFT including TLC, and chest imaging.`;
+      document.getElementById("epicNote").value = note;
+
+      drawChart(data, baselineFev1, threshold80);
+    }
+
+    // ------------------------------
+    // Canvas chart (same as great example)
+    // ------------------------------
+    function clearCanvas() {
+      const canvas = document.getElementById("pftChart");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawChart(data, baselineFev1, threshold80) {
+      const canvas = document.getElementById("pftChart");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const padding = 60;
+      const width = canvas.width - padding * 2;
+      const height = canvas.height - padding * 2;
+
+      const allValues = data.flatMap(d => [d.fev1, d.fvc, baselineFev1, threshold80]);
+      const minY = Math.max(0, Math.min(...allValues) - 0.3);
+      const maxY = Math.max(...allValues) + 0.3;
+
+      function xScale(index) {
+        if (data.length === 1) return padding + width / 2;
+        return padding + (index / (data.length - 1)) * width;
+      }
+      function yScale(value) {
+        return padding + height - ((value - minY) / (maxY - minY)) * height;
+      }
+
+      // Axes
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding, padding);
+      ctx.lineTo(padding, padding + height);
+      ctx.lineTo(padding + width, padding + height);
+      ctx.stroke();
+
+      for (let i = 0; i <= 5; i++) {
+        const yVal = minY + (i / 5) * (maxY - minY);
+        const y = yScale(yVal);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "12px Arial";
+        ctx.fillText(yVal.toFixed(1), 15, y + 4);
+        ctx.strokeStyle = "#e5e7eb";
+        ctx.beginPath();
+        ctx.moveTo(padding, y);
+        ctx.lineTo(padding + width, y);
+        ctx.stroke();
+      }
+
+      // Lines
+      function drawLine(values, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        values.forEach((value, i) => {
+          const x = xScale(i);
+          const y = yScale(value);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        values.forEach((value, i) => {
+          const x = xScale(i);
+          const y = yScale(value);
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+      drawLine(data.map(d => d.fev1), "#2563eb");
+      drawLine(data.map(d => d.fvc), "#16a34a");
+
+      // Horizontal threshold
+      const yThresh = yScale(threshold80);
+      ctx.strokeStyle = "#dc2626";
+      ctx.setLineDash([8, 6]);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(padding, yThresh);
+      ctx.lineTo(padding + width, yThresh);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#dc2626";
+      ctx.font = "13px Arial";
+      ctx.fillText("20% decline threshold (" + threshold80.toFixed(2) + " L)", padding + 10, yThresh - 8);
+
+      // Date labels
+      data.forEach((d, i) => {
+        const x = xScale(i);
+        ctx.fillStyle = "#475569";
+        ctx.font = "11px Arial";
+        ctx.save();
+        ctx.translate(x - 20, padding + height + 35);
+        ctx.rotate(-Math.PI / 5);
+        ctx.fillText(d.date, 0, 0);
+        ctx.restore();
+      });
+
+      // Legend
+      const legend = [
+        { label: "FEV1", color: "#2563eb" },
+        { label: "FVC", color: "#16a34a" },
+        { label: "20% threshold", color: "#dc2626" }
+      ];
+      let legX = padding;
+      legend.forEach(item => {
+        ctx.fillStyle = item.color;
+        ctx.fillRect(legX, 25, 16, 4);
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "13px Arial";
+        ctx.fillText(item.label, legX + 22, 30);
+        legX += 140;
+      });
+    }
+
+    // ------------------------------
+    // PDF upload (backend extraction)
+    // ------------------------------
+    async function uploadPDF() {
+      const fileInput = document.getElementById("pdfUpload");
+      const file = fileInput.files[0];
+      const statusDiv = document.getElementById("uploadStatus");
+
+      if (!file) {
+        statusDiv.innerText = "❌ Please select a PDF file.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      statusDiv.innerText = "⏳ Uploading & extracting...";
+
+      try {
+        const response = await fetch("http://127.0.0.1:5000/extract_pft", {
+          method: "POST",
+          body: formData
+        });
+        const data = await response.json();
+
+        if (data.success && data.fev1 !== null && !isNaN(data.fev1)) {
+          // Add a new row with today's date and extracted values
+          const today = new Date().toISOString().split("T")[0];
+          addRow(today, data.fev1.toFixed(2), data.fvc ? data.fvc.toFixed(2) : "");
+          statusDiv.innerHTML = "✅ Extraction successful! Row added. Click 'Calculate CLAD' to refresh trends.";
+          // Optionally auto‑calculate:
+          // calculateCLAD();
+        } else {
+          statusDiv.innerText = "⚠️ Extraction failed: could not find FEV1 in PDF.";
+        }
+      } catch (err) {
+        console.error(err);
+        statusDiv.innerText = "❌ Backend not running or CORS error. Make sure Flask server is on http://127.0.0.1:5000";
+      }
+    }
+
+    function copyNote() {
+      const note = document.getElementById("epicNote");
+      note.select();
+      document.execCommand("copy");
+      alert("Note copied to clipboard.");
+    }
+
+    // Initialize with example data
+    loadExample();
+  </script>
+</body>
+</html>
